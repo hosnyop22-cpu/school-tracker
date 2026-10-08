@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>نظام متابعة المدرسة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f4f7f7;--card:#fff;--ink:#12302f;--mute:#5f7776;--line:#dbe5e4;--nile:#0f5c58;--sand:#d9a21b;--bad:#c2453a;--ok:#2a8a5a}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1b1b;--card:#152726;--ink:#e6f0ef;--mute:#92aaa8;--line:#264240;--nile:#4cc0b6;--sand:#e8b94a;--bad:#e8776c;--ok:#5fcf93}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,Tahoma,sans-serif;line-height:1.7;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+h1{margin:0;font-size:1.4rem;font-weight:800;color:var(--nile)}h2{margin:0 0 8px;font-size:1.05rem}
+.box{max-width:420px;margin:30px auto;padding:20px;background:var(--card);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;color:var(--mute)}
+input,select,textarea{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:42px}
+input[type=checkbox]{min-height:0;width:18px;height:18px}.chk{flex-direction:row;align-items:center;gap:8px}
+.btn{border:0;background:var(--nile);color:var(--bg);font:inherit;font-weight:600;padding:9px 18px;border-radius:8px;cursor:pointer;min-height:42px}
+.btn.ghost{background:transparent;color:var(--mute);border:1px solid var(--line)}
+.seg2,.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg2 button,.seg button{border:0;background:var(--bg);color:var(--mute);font:inherit;padding:8px 14px;cursor:pointer;min-height:42px}
+.seg2 button.on{background:var(--nile);color:var(--bg)}
+.seg button.p.on{background:var(--ok);color:#fff}.seg button.l.on{background:var(--sand);color:#222}.seg button.a.on{background:var(--bad);color:#fff}
+header{max-width:980px;margin:auto;padding:16px 16px 6px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+nav{display:flex;gap:6px;overflow-x:auto;max-width:980px;margin:auto;padding:6px 16px}
+nav button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;padding:8px 16px;border-radius:999px;cursor:pointer;min-height:42px}
+nav button.on{background:var(--nile);color:var(--bg);border-color:var(--nile);font-weight:600}
+main{max-width:980px;margin:auto;padding:10px 16px 40px}.sec{display:none}.sec.on{display:block}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.kpi,.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card{margin-bottom:12px;padding:14px}
+.kpi b{display:block;font-size:1.7rem;font-weight:800;color:var(--nile)}.kpi span,.note{color:var(--mute);font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--mute);font-weight:600}
+td input[type=number]{width:70px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.chip{display:inline-flex;gap:4px;align-items:center}.chip input{width:125px}
+.chip button:not(.btn){border:1px solid var(--line);background:var(--bg);color:var(--bad);border-radius:6px;cursor:pointer;padding:2px 9px;min-height:42px}
+.tag{display:inline-block;padding:1px 10px;border-radius:999px;font-size:.8rem;background:var(--bad);color:#fff;margin-left:4px}
+canvas{max-height:260px}#risk td{white-space:normal}
+#toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}#toast.on{opacity:1}
+.code{font-size:1.6rem;font-weight:800;letter-spacing:3px;color:var(--nile);direction:ltr;text-align:center}
+</style>
+</head>
+<body>
+
+<section id="setup" class="box" hidden><h1>إعداد مطلوب</h1><p>افتح ملف index.html وضع المفتاح العام لمشروعك مكان النص في سطر <b dir="ltr">SUPABASE_KEY</b> أعلى الكود، ثم أعد النشر.</p></section>
+
+<section id="auth" class="box" hidden>
+  <h1>نظام متابعة المدرسة</h1>
+  <div class="seg2"><button data-m="in" class="on">دخول</button><button data-m="up">حساب جديد</button></div>
+  <label>البريد الإلكتروني<input id="em" type="email" autocomplete="email" dir="ltr"></label>
+  <label>كلمة السر (6 أحرف على الأقل)<input id="pw" type="password" autocomplete="current-password" dir="ltr"></label>
+  <button class="btn" id="goAuth">دخول</button>
+  <p class="note" id="amsg"></p>
+</section>
+
+<section id="onb" class="box" hidden>
+  <h2>إكمال التسجيل</h2>
+  <div class="seg2"><button data-o="new" class="on">مدرسة جديدة</button><button data-o="join">انضمام بدعوة</button></div>
+  <label>اسمك<input id="oname"></label>
+  <label id="lsch">اسم المدرسة (تجربة مجانية 30 يومًا)<input id="osch"></label>
+  <label id="lcode" hidden>رمز الدعوة من مدير المدرسة<input id="ocode" dir="ltr"></label>
+  <label class="chk"><input type="checkbox" id="terms"> أوافق على شروط الاستخدام، وأن بيانات الطلاب ملك المدرسة.</label>
+  <button class="btn" id="goOnb">متابعة</button>
+  <button class="btn ghost" id="out1">خروج</button>
+  <p class="note" id="omsg"></p>
+</section>
+
+<div id="app" hidden>
+<header>
+  <div><h1 id="sname"></h1><span class="note" id="trial"></span></div>
+  <div class="row" style="margin:0"><span class="note" id="uinfo"></span><button class="btn ghost" id="out2">خروج</button></div>
+</header>
+<nav id="nav">
+  <button data-t="dash" class="on">لوحة المؤشرات</button><button data-t="att">الغياب</button><button data-t="gr">الدرجات</button><button data-t="team" id="tabteam">الفريق</button>
+</nav>
+<main>
+<section id="dash" class="sec on">
+  <div class="kpis" id="kpis"></div>
+  <div class="grid">
+    <div class="card"><h2>نسبة الحضور آخر 7 أيام مسجلة</h2><canvas id="c1"></canvas></div>
+    <div class="card"><h2>متوسط الدرجات لكل مادة</h2><canvas id="c2"></canvas></div>
+  </div>
+  <div class="card"><h2>إنذار مبكر: طلاب يحتاجون متابعة</h2><div class="wrap"><table id="risk"></table></div></div>
+</section>
+
+<section id="att" class="sec"><div class="card">
+  <div class="row"><label>التاريخ <input type="date" id="d"></label><select id="cls"></select><input type="search" id="q" placeholder="بحث باسم الطالب"><button class="btn" id="allp">اعتماد اليوم</button></div>
+  <p class="note">سجّل الغائبين فقط، وبقية الطلاب يُحسبون حاضرين تلقائيًا. ثم اضغط «اعتماد اليوم».</p>
+  <div class="wrap"><table id="atbl"></table></div>
+  <p class="note" id="asum"></p>
+  <div class="row"><input type="text" id="nst" placeholder="اسم طالب جديد في هذا الصف"><button class="btn" id="addst">إضافة طالب</button></div>
+</div></section>
+
+<section id="gr" class="sec"><div class="card">
+  <div class="row"><select id="gcls"></select><span class="note">عدّل الدرجة (من 100) وتُحفظ تلقائيًا</span></div>
+  <p class="note">مواد هذا الصف: عدّل الاسم أو احذف المادة أو أضف مادة جديدة.</p>
+  <div class="row" id="subjs"></div>
+  <div class="wrap"><table id="gtbl"></table></div>
+</div></section>
+
+<section id="team" class="sec">
+  <div class="card"><h2>دعوة معلم</h2>
+    <p class="note">اضغط لإنشاء رمز لمرة واحدة، وأعطه للمعلم. يسجّل المعلم حسابًا جديدًا ثم يختار «انضمام بدعوة» ويكتب الرمز.</p>
+    <div class="row"><button class="btn" id="mkinv">إنشاء رمز دعوة</button></div><div class="code" id="inv"></div></div>
+  <div class="card"><h2>أعضاء المدرسة</h2><div class="wrap"><table id="mem"></table></div></div>
+</section>
+</main>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ====== ضع بيانات مشروعك هنا ====== */
+const SUPABASE_URL='https://oapgltnysnmkwecaxaot.supabase.co';   // تحقق أنه مطابق لـ Project URL عندك
+const SUPABASE_KEY='sb_publishable_UcGuSCG-TQu1uTCIIvzzNw_exNv7URP';  // المفتاح العام فقط (anon / publishable)
+/* ================================== */
+
+const $=id=>document.getElementById(id);
+const CLASSES=['الأول أساس','الثاني أساس','الثالث أساس','الرابع أساس','الخامس أساس','السادس أساس','الأول متوسط','الثاني متوسط','الثالث متوسط','الأول ثانوي','الثاني ثانوي','الثالث ثانوي'];
+const DEFAULT_SUBJ=['الرياضيات','العلوم','اللغة العربية','اللغة الإنجليزية'];
+let sb,me,school,ST=[],SUBJ={},GR={},ATT={},DAYS={},charts={};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const dkey=d=>new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const today=()=>dkey(new Date());
+const since=()=>{const d=new Date();d.setDate(d.getDate()-45);return dkey(d)};
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const fa=v=>v==null?'-':v.toFixed(0);
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),3500)}
+async function q(p){const{data,error}=await p;if(error)throw error;return data}
+async function run(fn){try{return await fn()}catch(e){toast('حدث خطأ: '+(e.message||e));console.error(e)}}
+async function all(table,build){let out=[],i=0;for(;;){const d=await q(build(sb.from(table).select('*')).range(i,i+999));out=out.concat(d);if(d.length<1000)break;i+=1000}return out}
+function screen(n){['setup','auth','onb','app'].forEach(s=>$(s).hidden=s!==n)}
+
+/* ---------- auth ---------- */
+let amode='in',omode='new';
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{amode=b.dataset.m;document.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('on',x===b));$('goAuth').textContent=amode=='in'?'دخول':'إنشاء الحساب';$('pw').autocomplete=amode=='in'?'current-password':'new-password'});
+document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{omode=b.dataset.o;document.querySelectorAll('[data-o]').forEach(x=>x.classList.toggle('on',x===b));$('lsch').hidden=omode!='new';$('lcode').hidden=omode!='join'});
+$('goAuth').onclick=()=>run(async()=>{const email=$('em').value.trim(),password=$('pw').value;
+  if(!email||password.length<6){$('amsg').textContent='أدخل البريد وكلمة سر من 6 أحرف على الأقل.';return}
+  if(amode=='in'){const d=await q(sb.auth.signInWithPassword({email,password}));route(d.session)}
+  else{const d=await q(sb.auth.signUp({email,password}));
+    if(d.session)route(d.session);else $('amsg').textContent='تم إنشاء الحساب. افتح رسالة التأكيد في بريدك ثم سجّل الدخول.'}});
+$('goOnb').onclick=()=>run(async()=>{const name=$('oname').value.trim();
+  if(name.length<2){$('omsg').textContent='اكتب اسمك.';return}
+  if(!$('terms').checked){$('omsg').textContent='يجب الموافقة على الشروط.';return}
+  const r=omode=='new'?await sb.rpc('register_school',{p_school:$('osch').value.trim(),p_name:name}):await sb.rpc('join_school',{p_code:$('ocode').value.trim(),p_name:name});
+  if(r.error){$('omsg').textContent=r.error.message.includes('already')?'هذا الحساب مسجّل مسبقًا، وقد تكون التجربة انتهت أو المدرسة معطّلة. تواصل مع الدعم.':r.error.message;return}
+  const{data:{session}}=await sb.auth.getSession();route(session)});
+const logout=()=>run(async()=>{await sb.auth.signOut();me=null;screen('auth')});
+$('out1').onclick=logout;$('out2').onclick=logout;
+
+async function route(session){
+  if(!session){screen('auth');return}
+  const p=await q(sb.from('profiles').select('*').eq('user_id',session.user.id).maybeSingle());
+  if(!p){screen('onb');return}
+  me=p;await loadApp()}
+
+/* ---------- data ---------- */
+async function loadApp(){
+  const[sc,stu,sj,gr,dy,at]=await Promise.all([
+    q(sb.from('schools').select('*').maybeSingle()),
+    all('students',x=>x.order('id')),all('class_subjects',x=>x),all('grades',x=>x),
+    all('attendance_days',x=>x.gte('day',since())),all('attendance',x=>x.gte('day',since()))]);
+  school=sc;ST=stu;SUBJ={};GR={};ATT={};DAYS={};
+  sj.forEach(r=>(SUBJ[r.class_name]=SUBJ[r.class_name]||[]).push(r.subject_name));
+  gr.forEach(r=>(GR[r.student_id]=GR[r.student_id]||{})[r.subject]=Number(r.score));
+  dy.forEach(r=>(DAYS[r.day]=DAYS[r.day]||new Set()).add(r.class_name));
+  at.forEach(r=>(ATT[r.day]=ATT[r.day]||{})[r.student_id]=r.status);
+  if(me.role=='admin'&&!sj.length){
+    const rows=[];CLASSES.forEach(c=>DEFAULT_SUBJ.forEach(s=>rows.push({class_name:c,subject_name:s})));
+    await q(sb.from('class_subjects').insert(rows));rows.forEach(r=>(SUBJ[r.class_name]=SUBJ[r.class_name]||[]).push(r.subject_name))}
+  $('sname').textContent=school?school.name:'';
+  if(school&&school.plan=='trial'){const n=Math.max(0,Math.ceil((new Date(school.trial_ends_at)-Date.now())/864e5));$('trial').textContent='تجربة مجانية: '+n+' يومًا متبقيًا'}else $('trial').textContent='اشتراك مفعّل';
+  $('uinfo').textContent=me.full_name+' — '+(me.role=='admin'?'مدير':'معلم');
+  $('tabteam').hidden=me.role!='admin';
+  [$('cls'),$('gcls')].forEach(fillCls);$('d').value=today();
+  screen('app');go('dash')}
+function fillCls(el){const g=[['المرحلة الأساس',CLASSES.slice(0,6)],['المرحلة المتوسطة',CLASSES.slice(6,9)],['المرحلة الثانوية',CLASSES.slice(9)]];
+  el.innerHTML=g.map(([t,a])=>`<optgroup label="${t}">${a.map(x=>`<option>${x}</option>`).join('')}</optgroup>`).join('');
+  const f=CLASSES.find(c=>ST.some(s=>s.class_name==c));if(f)el.value=f}
+const stAvg=s=>{const v=(SUBJ[s.class_name]||[]).map(j=>GR[s.id]?.[j]).filter(x=>x!=null);return v.length?avg(v):null};
+function dayRate(d){const cl=DAYS[d];if(!cl)return null;const ids=ST.filter(s=>cl.has(s.class_name));if(!ids.length)return null;return(ids.length-ids.filter(s=>ATT[d]?.[s.id]=='a').length)/ids.length*100}
+const abs7=id=>Object.keys(DAYS).sort().slice(-7).filter(d=>ATT[d]?.[id]=='a').length;
+function chart(id,cfg){if(charts[id])charts[id].destroy();if(!window.Chart)return;Chart.defaults.font.family='Cairo,Tahoma,sans-serif';charts[id]=new Chart($(id),cfg)}
+
+/* ---------- navigation ---------- */
+const VIEWS={dash:()=>dash(),att:()=>attView(),gr:()=>grView(),team:()=>run(teamView)};
+function go(t){document.querySelectorAll('.sec').forEach(e=>e.classList.toggle('on',e.id==t));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));VIEWS[t]()}
+$('nav').onclick=e=>{if(e.target.dataset.t)go(e.target.dataset.t)};
+
+/* ---------- dashboard ---------- */
+function dash(){
+  const days=Object.keys(DAYS).sort().slice(-7),rt=days.map(dayRate),last=[...rt].reverse().find(x=>x!=null);
+  const grs=ST.map(stAvg).filter(x=>x!=null);
+  const w=ST.map(s=>{const r=[],a=stAvg(s),n=abs7(s.id);if(n>=3)r.push('غاب '+n+' أيام من آخر 7');if(a!=null&&a<50)r.push('متوسط الدرجات '+a.toFixed(0));return{s,r}}).filter(x=>x.r.length);
+  $('kpis').innerHTML=`<div class="kpi"><b>${ST.length}</b><span>عدد الطلاب</span></div><div class="kpi"><b>${last==null?'-':last.toFixed(0)+'%'}</b><span>حضور آخر يوم مسجل</span></div><div class="kpi"><b>${grs.length?fa(avg(grs)):'-'}</b><span>متوسط الدرجات</span></div><div class="kpi"><b>${w.length}</b><span>طلاب يحتاجون متابعة</span></div>`;
+  chart('c1',{type:'line',data:{labels:days.map(d=>d.slice(5)),datasets:[{data:rt,borderColor:'#0f8f86',backgroundColor:'rgba(15,143,134,.15)',fill:true,tension:.3}]},options:{scales:{y:{min:0,max:100}},plugins:{legend:{display:false}}}});
+  const names=[...new Set(Object.values(SUBJ).flat())];
+  chart('c2',{type:'bar',data:{labels:names,datasets:[{data:names.map(j=>{const v=ST.filter(s=>(SUBJ[s.class_name]||[]).includes(j)).map(s=>GR[s.id]?.[j]).filter(x=>x!=null);return v.length?avg(v):null}),backgroundColor:'#d9a21b',borderRadius:6}]},options:{scales:{y:{min:0,max:100}},plugins:{legend:{display:false}}}});
+  $('risk').innerHTML='<tr><th>الطالب</th><th>الصف</th><th>أسباب الإنذار</th></tr>'+(w.length?w.map(({s,r})=>`<tr><td>${esc(s.name)}</td><td>${s.class_name}</td><td>${r.map(x=>`<span class="tag">${x}</span>`).join('')}</td></tr>`).join(''):'<tr><td colspan="3">لا توجد إنذارات حاليًا.</td></tr>')}
+
+/* ---------- attendance ---------- */
+function attView(){
+  const d=$('d').value||today(),c=$('cls').value,s0=$('q').value.trim(),m=ATT[d]||{};
+  const list=ST.filter(s=>s.class_name==c),rows=list.filter(s=>s.name.includes(s0));
+  $('atbl').innerHTML='<tr><th>الطالب</th><th>الحالة</th></tr>'+rows.map(s=>{const v=m[s.id]||'p';
+    return `<tr><td>${esc(s.name)}</td><td><div class="seg" data-id="${s.id}">${[['p','حاضر'],['l','متأخر'],['a','غائب']].map(([k,t])=>`<button class="${k} ${v==k?'on':''}" data-v="${k}">${t}</button>`).join('')}</div></td></tr>`}).join('');
+  const an=list.filter(s=>m[s.id]=='a').length,ln=list.filter(s=>m[s.id]=='l').length;
+  $('asum').textContent=!list.length?'لا يوجد طلاب في هذا الصف بعد. أضف الطالب الأول من الخانة أدناه.':`${DAYS[d]?.has(c)?'تم اعتماد اليوم':'لم يُعتمد اليوم بعد'} — غائب: ${an}، متأخر: ${ln}، حاضر: ${list.length-an}`}
+async function markDay(d,c){if(DAYS[d]?.has(c))return;const{error}=await sb.from('attendance_days').insert({class_name:c,day:d});if(error&&error.code!='23505')throw error;(DAYS[d]=DAYS[d]||new Set()).add(c)}
+$('d').onchange=attView;$('cls').onchange=attView;$('q').oninput=attView;
+$('atbl').onclick=e=>{const b=e.target.closest('button');if(!b)return;run(async()=>{
+  const d=$('d').value||today(),c=$('cls').value,id=+b.parentNode.dataset.id,cur=ATT[d]?.[id]||'p',v=b.dataset.v,nv=(v=='p'||cur==v)?'p':v;
+  await markDay(d,c);
+  if(nv=='p'){await q(sb.from('attendance').delete().eq('student_id',id).eq('day',d));if(ATT[d])delete ATT[d][id]}
+  else{await q(sb.from('attendance').upsert({student_id:id,day:d,status:nv},{onConflict:'student_id,day'}));(ATT[d]=ATT[d]||{})[id]=nv}
+  attView()})};
+$('allp').onclick=()=>run(async()=>{await markDay($('d').value||today(),$('cls').value);attView();toast('تم اعتماد اليوم')});
+$('addst').onclick=()=>run(async()=>{const n=$('nst').value.trim();if(!n)return;
+  const r=await q(sb.from('students').insert({name:n,class_name:$('cls').value}).select().single());ST.push(r);$('nst').value='';attView()});
+
+/* ---------- grades & subjects ---------- */
+function grView(){
+  const c=$('gcls').value,SJ=SUBJ[c]||[];
+  $('subjs').innerHTML=SJ.map((j,i)=>`<span class="chip"><input type="text" data-i="${i}" value="${esc(j)}"><button data-del="${i}" title="حذف المادة">×</button></span>`).join('')+`<span class="chip"><input type="text" id="newj" placeholder="مادة جديدة"><button class="btn" id="addj">إضافة</button></span>`;
+  $('gtbl').innerHTML='<tr><th>الطالب</th>'+SJ.map(j=>`<th>${esc(j)}</th>`).join('')+'<th>المتوسط</th></tr>'+
+    ST.filter(s=>s.class_name==c).map(s=>`<tr><td>${esc(s.name)}</td>`+SJ.map(j=>`<td><input type="number" min="0" max="100" data-id="${s.id}" data-j="${esc(j)}" value="${GR[s.id]?.[j]??''}"></td>`).join('')+`<td><b>${fa(stAvg(s))}</b></td></tr>`).join('')}
+$('gcls').onchange=grView;
+$('gtbl').onchange=e=>run(async()=>{const i=e.target,id=+i.dataset.id,j=i.dataset.j;if(!j)return;
+  if(i.value===''){await q(sb.from('grades').delete().eq('student_id',id).eq('subject',j));if(GR[id])delete GR[id][j]}
+  else{const v=Math.max(0,Math.min(100,+i.value||0));await q(sb.from('grades').upsert({student_id:id,subject:j,score:v},{onConflict:'student_id,subject'}));(GR[id]=GR[id]||{})[j]=v}
+  grView()});
+$('subjs').onchange=e=>run(async()=>{const t=e.target,c=$('gcls').value;if(t.dataset.i===undefined)return;
+  const i=+t.dataset.i,old=SUBJ[c][i],nv=t.value.trim();
+  if(!nv||nv==old||SUBJ[c].includes(nv)){grView();return}
+  await q(sb.from('class_subjects').update({subject_name:nv}).eq('class_name',c).eq('subject_name',old));
+  const ids=ST.filter(s=>s.class_name==c).map(s=>s.id);
+  if(ids.length)await q(sb.from('grades').update({subject:nv}).eq('subject',old).in('student_id',ids));
+  SUBJ[c][i]=nv;ids.forEach(id=>{if(GR[id]&&old in GR[id]){GR[id][nv]=GR[id][old];delete GR[id][old]}});grView()});
+$('subjs').onclick=e=>run(async()=>{const c=$('gcls').value,b=e.target.closest('button');if(!b)return;
+  if(b.dataset.del!==undefined){const i=+b.dataset.del;await q(sb.from('class_subjects').delete().eq('class_name',c).eq('subject_name',SUBJ[c][i]));SUBJ[c].splice(i,1)}
+  else{const n=$('newj').value.trim();if(!n||(SUBJ[c]||[]).includes(n))return;await q(sb.from('class_subjects').insert({class_name:c,subject_name:n}));(SUBJ[c]=SUBJ[c]||[]).push(n)}
+  grView()});
+
+/* ---------- team ---------- */
+async function teamView(){const r=await q(sb.from('profiles').select('full_name,role').order('created_at'));
+  $('mem').innerHTML='<tr><th>الاسم</th><th>الدور</th></tr>'+r.map(p=>`<tr><td>${esc(p.full_name)}</td><td>${p.role=='admin'?'مدير':'معلم'}</td></tr>`).join('')}
+$('mkinv').onclick=()=>run(async()=>{$('inv').textContent=await q(sb.rpc('create_invite'))});
+
+/* ---------- start ---------- */
+if(SUPABASE_KEY.startsWith('PASTE')){screen('setup')}
+else{sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  sb.auth.onAuthStateChange(ev=>{if(ev=='SIGNED_OUT')screen('auth')});
+  run(async()=>{const{data:{session}}=await sb.auth.getSession();await route(session)})}
+</script>
+</body>
+</html>
